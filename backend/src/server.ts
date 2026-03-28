@@ -8,7 +8,8 @@ import { startQueueProcess } from "./queues";
 import { TransferTicketQueue } from "./wbotTransferTicketQueue";
 import cron from "node-cron";
 
-const server = app.listen(process.env.PORT, async () => {
+// Mantemos a lógica de inicialização, mas adaptada
+const startServer = async () => {
   const companies = await Company.findAll();
   const allPromises: any[] = [];
   companies.map(async c => {
@@ -16,25 +17,39 @@ const server = app.listen(process.env.PORT, async () => {
     allPromises.push(promise);
   });
 
-  Promise.all(allPromises).then(() => {
-    startQueueProcess();
-  });
-  logger.info(`Server started on port: ${process.env.PORT}`);
-});
+  await Promise.all(allPromises);
+  startQueueProcess();
+  logger.info(`Backend RM Boot Inicializado com sucesso`);
+};
 
+// Executa a inicialização
+startServer();
+
+// Agendador de tarefas
 cron.schedule("* * * * *", async () => {
-
   try {
-    // console.log("Running a job at 01:00 at America/Sao_Paulo timezone")
     logger.info(`Serviço de transferencia de tickets iniciado`);
-
     await TransferTicketQueue();
-  }
-  catch (error) {
+  } catch (error) {
     logger.error(error);
   }
-
 });
 
-initIO(server);
-gracefulShutdown(server);
+// CONFIGURAÇÃO PARA CLOUDFLARE WORKERS
+// Em vez de app.listen, exportamos o fetch
+export default {
+  async fetch(request: any, env: any, ctx: any) {
+    // Passamos as variáveis de ambiente da Cloudflare para o process.env do Node
+    if (env) {
+      Object.keys(env).forEach((key) => {
+        process.env[key] = env[key];
+      });
+    }
+    
+    // Inicia o socket se necessário (ajuste técnico para Workers)
+    const server = (app as any).listen ? (app as any) : app;
+    initIO(server);
+
+    return (app as any).fetch(request, env, ctx);
+  },
+};
