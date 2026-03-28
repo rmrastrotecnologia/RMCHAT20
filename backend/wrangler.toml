@@ -1,11 +1,10 @@
 name = "rm-boot-backend"
-main = "dist/server.js" # Altere para apontar para o arquivo compilado
+main = "dist/server.js" 
 compatibility_date = "2026-03-28"
 compatibility_flags = [ "nodejs_compat" ]
 
 [build]
-# O "|| exit 0" garante que, mesmo com avisos de TS, ele tente subir o que foi gerado
-command = "npm install && npx tsc --skipLibCheck || echo 'Build concluído com avisos'"
+command = "npm install && npx tsc --outDir dist --skipLibCheck || echo 'Build finalizado'"
 
 [vars]
 NODE_VERSION = "20"
