@@ -1,55 +1,64 @@
-import gracefulShutdown from "http-graceful-shutdown";
-import app from "./app";
-import { initIO } from "./libs/socket";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { logger } from "./utils/logger";
-import { StartAllWhatsAppsSessions } from "./services/WbotServices/StartAllWhatsAppsSessions";
-import Company from "./models/Company";
-import { startQueueProcess } from "./queues";
-import { TransferTicketQueue } from "./wbotTransferTicketQueue";
-import cron from "node-cron";
+import routes from "./routes";
+import { errorHandler } from "./middleware/errorHandler";
 
-// Mantemos a lógica de inicialização, mas adaptada
-const startServer = async () => {
-  const companies = await Company.findAll();
-  const allPromises: any[] = [];
-  companies.map(async c => {
-    const promise = StartAllWhatsAppsSessions(c.id);
-    allPromises.push(promise);
-  });
+export interface Env {
+  DB: D1Database;
+  BUCKET: R2Bucket;
+  WS_NAMESPACE: DurableObjectNamespace;
+  JWT_SECRET: string;
+  FRONTEND_URL: string;
+  ENVIRONMENT: string;
+}
 
-  await Promise.all(allPromises);
-  startQueueProcess();
-  logger.info(`Backend RM Boot Inicializado com sucesso`);
-};
+const app = new Hono<{ Bindings: Env }>();
 
-// Executa a inicialização
-startServer();
+// CORS
+app.use(
+  "*",
+  cors({
+    origin: (process.env.FRONTEND_URL = "http://localhost:3000"),
+    credentials: true,
+  })
+);
 
-// Agendador de tarefas
-cron.schedule("* * * * *", async () => {
+// Routes
+app.route("/api", routes);
+
+// Health check
+app.get("/health", (c) => {
+  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Error Handler
+app.onError(errorHandler);
+
+// 404 Handler
+app.notFound((c) => {
+  return c.json({ error: "Not Found" }, 404);
+});
+
+// WebSocket upgrade for Durable Objects
+app.get("/ws/:ticketId", async (c) => {
+  const ticketId = c.req.param("ticketId");
+  const upgradeHeader = c.req.header("Upgrade");
+
+  if (upgradeHeader !== "websocket") {
+    return c.text("Upgrade header must be 'websocket'", 400);
+  }
+
   try {
-    logger.info(`Serviço de transferencia de tickets iniciado`);
-    await TransferTicketQueue();
+    const id = c.env.WS_NAMESPACE.idFromName(ticketId);
+    const stub = c.env.WS_NAMESPACE.get(id);
+
+    // Upgrade to WebSocket via Durable Object
+    return stub.fetch(c.req.raw);
   } catch (error) {
     logger.error(error);
+    return c.json({ error: "WebSocket connection failed" }, 500);
   }
 });
 
-// CONFIGURAÇÃO PARA CLOUDFLARE WORKERS
-// Em vez de app.listen, exportamos o fetch
-export default {
-  async fetch(request: any, env: any, ctx: any) {
-    // Passamos as variáveis de ambiente da Cloudflare para o process.env do Node
-    if (env) {
-      Object.keys(env).forEach((key) => {
-        process.env[key] = env[key];
-      });
-    }
-    
-    // Inicia o socket se necessário (ajuste técnico para Workers)
-    const server = (app as any).listen ? (app as any) : app;
-    initIO(server);
-
-    return (app as any).fetch(request, env, ctx);
-  },
-};
+export default app;

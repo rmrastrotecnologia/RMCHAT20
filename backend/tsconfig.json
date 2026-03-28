@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "ES2022",
     "module": "commonjs",
+    "lib": ["ES2022"],
+    "moduleResolution": "node",
     "rootDir": "./src",
     "outDir": "./dist",
     "strict": false,
@@ -9,18 +11,20 @@
     "strictNullChecks": false,
     "strictPropertyInitialization": false,
     "esModuleInterop": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": [
-    "node_modules", 
-    "dist", 
-    "src/database copy", 
+    "node_modules",
+    "dist",
+    "src/database copy",
     "src/database/migrations",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }

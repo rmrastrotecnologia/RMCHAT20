@@ -1,20 +1,28 @@
-import { Router } from "express";
-
-import isAuth from "../middleware/isAuth";
+import { Hono } from "hono";
+import { authMiddleware } from "../middleware/auth";
 import * as UserController from "../controllers/UserController";
 
-const userRoutes = Router();
+const users = new Hono();
 
-userRoutes.get("/users", isAuth, UserController.index);
+// All user routes require authentication
+users.use("*", authMiddleware);
 
-userRoutes.get("/users/list", isAuth, UserController.list);
+// List users with pagination
+users.get("/", UserController.index);
 
-userRoutes.post("/users", isAuth, UserController.store);
+// Simple list (without pagination) - get this before :userId
+users.get("/list", UserController.list);
 
-userRoutes.put("/users/:userId", isAuth, UserController.update);
+// Create user
+users.post("/", UserController.store);
 
-userRoutes.get("/users/:userId", isAuth, UserController.show);
+// Get user by ID
+users.get("/:userId", UserController.show);
 
-userRoutes.delete("/users/:userId", isAuth, UserController.remove);
+// Update user
+users.put("/:userId", UserController.update);
 
-export default userRoutes;
+// Delete user
+users.delete("/:userId", UserController.remove);
+
+export default users;
