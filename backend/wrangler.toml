@@ -4,5 +4,7 @@ compatibility_date = "2026-03-28"
 compatibility_flags = [ "nodejs_compat" ]
 
 [build]
-# Comando ajustado para o seu package.json
 command = "npm install && npm run build"
+
+[alias]
+"sharp" = "node_modules/pino/browser.js"
