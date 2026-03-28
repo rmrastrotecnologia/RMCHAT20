@@ -1,0 +1,8 @@
+name = "rm-boot-backend"
+main = "dist/server.js"
+compatibility_date = "2026-03-28"
+compatibility_flags = [ "nodejs_compat" ]
+
+[build]
+# Isso garante que a Cloudflare instale as dependências antes de tentar rodar o código
+command = "npm install"
